@@ -8,7 +8,7 @@ import joblib
 from flask_jwt_extended import jwt_required
 
 klasifikasi = Blueprint('klasifikasi', __name__)
-model = joblib.load('./klasifikasi_model.pkl')
+model = joblib.load('./knn_model_fix.pkl')
 @klasifikasi.get("/api/get/data")
 @jwt_required()
 def get_rekomendasi():
@@ -24,9 +24,9 @@ def get_rekomendasi():
             DataDiriPenerima.jenis_kebutuhan,
             HasilKlasifikasi.layak
         ).join(
-            HasilKlasifikasi, HasilKlasifikasi.id_penerima == Penerima.id
+            HasilKlasifikasi, HasilKlasifikasi.id_user == Penerima.id
         ).join(
-            DataDiriPenerima, DataDiriPenerima.id_penerima == Penerima.id
+            DataDiriPenerima, DataDiriPenerima.id_user == Penerima.id
         ).all()
 
         data_list = [
@@ -52,11 +52,10 @@ def get_rekomendasi():
             "jenis_kebutuhan": "jenis kebutuhan"
         }, inplace=True)
 
-        features = ["penghasilan perbulan", "jumlah tanggungan", "jumlah kendaraan", "status tempat tinggal", "jenis kebutuhan"]
-        predictions = model.predict(df[features])
+        predictions = HasilKlasifikasi.klasifikasi_predict(df)
 
         for i, row in enumerate(data_list):
-            db.session.query(HasilKlasifikasi).filter_by(id_penerima=row["id"]).update({
+            db.session.query(HasilKlasifikasi).filter_by(id_user=row["id"]).update({
                 "layak": int(predictions[i])
             })
 
@@ -73,10 +72,25 @@ def get_rekomendasi():
 @jwt_required()
 def getData():
     try:
-        data = db.session.query(DataDiriPenerima).all()
-        return jsonify({
-            "data": [d.to_dict() for d in data]
-        })
+        data = db.session.query(
+            Register_login.id, 
+            Register_login.name,
+            DataDiriPenerima.kategori, 
+            DataDiriPenerima.jenis_kebutuhan,
+            Register_login.status,
+            HasilKlasifikasi.layak,).join(
+            DataDiriPenerima, Register_login.id == DataDiriPenerima.id_user).join(HasilKlasifikasi, HasilKlasifikasi.id_user == Register_login.id).order_by(Register_login.id.asc()).all()
+        data_list = [
+            {
+                "id": d[0],
+                "name": d[1],
+                "kategori": d[2],
+                "jenis_kebutuhan": d[3],
+                "status": d[4],
+                "layak": d[5]
+            } for d in data
+        ]
+        return jsonify({"data": data_list}), 200
     except Exception as e:
         return jsonify({"message": str(e)}), 500
 

@@ -1,10 +1,8 @@
-# routes = Blueprint('routes', __name__)
-# from .admin import admin
 from .penerima import penerima
-# from .donatur import donatur
 from .barang import barang
 from .donasi import donasi
 from .klasifikasi import klasifikasi
+from .notif import notif
 
 
 def init_routes(app):
@@ -14,3 +12,4 @@ def init_routes(app):
     app.register_blueprint(barang, url_prefix='/barang')
     app.register_blueprint(donasi, url_prefix='/donasi')
     app.register_blueprint(klasifikasi, url_prefix='/klasifikasi')
+    app.register_blueprint(notif, url_prefix='/notif')

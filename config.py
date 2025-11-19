@@ -11,7 +11,7 @@ class Config:
     PROPAGATE_EXCEPTIONS = True
     CORS_HEADERS = 'Content-Type'
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "jwtsecretkey")  
-    JWT_ACCESS_TOKEN_EXPIRES = timedelta(seconds=3600)
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(seconds=7200)
     UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
 
     
