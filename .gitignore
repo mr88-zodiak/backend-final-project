@@ -1,2 +1,8 @@
 __pycache__
 tool
+test
+v.mp4
+x.mp4
+./projek_skripsi/backend/app/__pycache__
+./projek_skripsi/backend/app/models/__pycache__
+./projek_skripsi/backend/app/models/routes/__pycache__
