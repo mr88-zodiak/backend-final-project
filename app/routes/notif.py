@@ -33,6 +33,7 @@ def create_notif(id_barang):
         return jsonify({"message": "alasan anda masuk akal juga"}), 201
 
     except Exception as e:
+        db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
 

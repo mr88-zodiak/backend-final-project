@@ -12,6 +12,7 @@ class Config:
     CORS_HEADERS = 'Content-Type'
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "jwtsecretkey")  
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(seconds=7200)
+    JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=7)
     UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
 
     

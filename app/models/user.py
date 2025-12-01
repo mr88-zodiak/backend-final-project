@@ -17,6 +17,12 @@ class Register_login(db.Model):
     approved_date = db.Column(db.DateTime)
     rejected_date = db.Column(db.DateTime)
 
+    pengajuan_barant = db.relationship(
+        'pengajuanBarang',
+        backref='users',
+        cascade="all, delete-orphan",
+        passive_deletes=True
+    )
     hasi_rekomendasi = db.relationship(
         'HasilRekomendasi',
         backref='users',

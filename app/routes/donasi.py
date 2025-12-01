@@ -104,6 +104,7 @@ def approve_donasi(id):
         socketio.emit('data_update',  {'message': 'Donasi diperbarui'})
         return jsonify({"message": "donasi berhasil diapprove"}), 200
     except Exception as e:
+        db.session.rollback()
         return jsonify({"message": str(e)}), 500
     
 @donasi.put("/api/reject/<int:id>")
@@ -124,7 +125,7 @@ def delete_donasi(id):
         socketio.emit('data_update',  {'message': 'Donasi diperbarui'})
         return jsonify({"message": "donasi ditolak"}), 200
     except Exception as e:
-        print(e)
+        db.session.rollback()
         return jsonify({"message": str(e)}), 500
 
 @donasi.put('/api/done/<int:id>')
@@ -143,7 +144,7 @@ def update_donasi(id):
         return jsonify({'message': 'donasi diselesaikan'})
 
     except Exception as e:
-        print(e)
+        db.session.rollback()
         return jsonify({'error' : str(e)}),500
 
 
@@ -216,6 +217,7 @@ def donasi_delete(id):
         socketio.emit('data_update',  {'message': 'Donasi diperbarui'})
         return jsonify({"message": "item berhasil dihapus"}), 200
     except Exception as e:
+        db.session.rollback()
         return jsonify({"message": str(e)}), 500
 
 @donasi.get('/api/get/riwayatDonasi')

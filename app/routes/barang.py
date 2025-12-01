@@ -62,6 +62,7 @@ def barang_delete(id):
         socketio.emit('data_update',  {'message': 'Donasi diperbarui'})
         return jsonify({"message": "item berhasil dihapus"}), 200
     except Exception as e:
+        db.session.rollback()
         return jsonify({"message": str(e)}), 500
 
 

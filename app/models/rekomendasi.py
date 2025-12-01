@@ -7,7 +7,7 @@ class HasilRekomendasi(db.Model):
         db.Integer,
         db.ForeignKey('users.id', ondelete="CASCADE"),
         nullable=False
-    )
+    ) 
     id_data_diri_penerima = db.Column(
         db.Integer,
         db.ForeignKey('data_diri_penerima.id', ondelete="CASCADE"),
