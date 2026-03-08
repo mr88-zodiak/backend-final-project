@@ -15,24 +15,31 @@ def create_notif(id_barang):
     try:
         data = request.get_json()
         message = data.get('message')
+
         if not message:
             return jsonify({"error": "Message is required"}), 400
-        donasi = Donasi.query.filter_by(id_barang=id_barang).first()
+
         barang = Barang.query.get(id_barang)
+        if not barang:
+            return jsonify({"error": "Barang tidak ditemukan"}), 404
+
+        donasi = Donasi.query.filter_by(id_barang=id_barang).first()
 
         new_notif = Notifikasi(
-            id_barang=id_barang,   
+            id_barang=barang.id,
             id_donasi=donasi.id if donasi else None,
-            id_donatur=barang.id_donatur if barang else None,
-            pesan=message,               
+            id_donatur=barang.id_donatur,
+            pesan=message,
         )
 
         db.session.add(new_notif)
         db.session.commit()
-        socketio.emit('data_update',  {'message': 'Donasi diperbarui'})
-        return jsonify({"message": "alasan anda masuk akal juga"}), 201
+
+        socketio.emit('data_update', {'message': 'Donasi diperbarui'})
+        return jsonify({"message": "Notifikasi berhasil dibuat"}), 201
 
     except Exception as e:
+        print(e)
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 

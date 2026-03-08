@@ -1,6 +1,7 @@
 from flask import request, jsonify,make_response, Blueprint
 from sqlalchemy import or_
 from app.models.user import *
+from app.models.pengajuan import *
 import pandas as pd
 import joblib
 from config import Config
@@ -15,7 +16,7 @@ from sqlalchemy import and_
 
 
 user = Blueprint('user', __name__)
-model = joblib.load('./klasifikasi_model.pkl')
+# model = joblib.load('./klasifikasi_model.pkl')
 
 @user.get('/test')
 def index():
@@ -30,6 +31,8 @@ def user_login():
     try:
         user = Register_login.query.filter_by(email=email).first()
 
+        if email == '' or password == '':
+            return jsonify({"message": "Email atau password tidak boleh kosong"}), 400
         if user is None:
             return jsonify({"message": "Email atau password belum terdaftar"}), 401
 
@@ -105,70 +108,19 @@ def penerima_daftar():
         return jsonify({"message": str(e)}), 500
 
 @user.post("/api/post/personalData")
-@jwt_required()
+# @jwt_required()
 def penerima_personalData():
     data = request.get_json()
     penghasilan = data.get("penghasilan")
     tanggungan = data.get("tanggungan")
     kendaraan = data.get("kendaraan")
     status_tempat_tinggal = data.get("status_tempat_tinggal")
-    jenis_kebutuhan = data.get("jenis_kebutuhan")
-    jumlah = data.get('jumlah')
-    kategori = data.get('kategori')
-    alamat = data.get('alamat')
-    print(get_jwt_identity())
-    try:
-        user = Register_login.query.get(get_jwt_identity())
-        if user.role != 'penerima':
-            return jsonify({'message': 'role bukan penerima'}), 401
-
-        if DataDiriPenerima.query.filter_by(id_user=user.id).first():
-            return jsonify({"message": "Data diri sudah ada"}), 400
-
-        add_dataDiri = DataDiriPenerima(
-            id_user=user.id,
-            penghasilan_perbulan=int(penghasilan),
-            jumlah_tanggungan=int(tanggungan),
-            jumlah_kendaraan=int(kendaraan),
-            status_tempat_tinggal=status_tempat_tinggal,
-            jenis_kebutuhan=jenis_kebutuhan,
-            jumlah=jumlah,
-            # alamat=alamat,
-            kategori=kategori
-        )
-        db.session.add(add_dataDiri)
-        db.session.commit()
-
-        assignIdRekomendasi = HasilKlasifikasi(
-            id_data_diri=add_dataDiri.id,
-            id_user=user.id
-        )
-        db.session.add(assignIdRekomendasi)
-        db.session.commit()
-
-        return jsonify({"message": "Data diri berhasil disimpan"}), 201
-
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"message": str(e)}), 500
-
-@user.post("/api/post/modal/personal")
-def penerima_personalData_modal():
-    data = request.get_json()
-    penghasilan = data.get("penghasilan")
-    tanggungan = data.get("tanggungan")
-    kendaraan = data.get("kendaraan")
-    status_tempat_tinggal = data.get("status_tempat_tinggal")
-    jenis_kebutuhan = data.get("jenis_kebutuhan")
-    jumlah = data.get('jumlah')
-    kategori = data.get("kategori")
     alamat = data.get('alamat')
     try:
+        role = ['penerima', 'admin']
         user = db.session.query(Register_login).order_by(Register_login.id.desc()).first()
-        print(user.role)
-        print(user.id)
-        if user.role != 'penerima':
-            return jsonify({'message': 'role bukan penerima'}), 401
+        if user.role not in role:
+            return jsonify({'message': 'role tidak diizinkan'}), 401
 
         if DataDiriPenerima.query.filter_by(id_user=user.id).first():
             return jsonify({"message": "Data diri sudah ada"}), 400
@@ -179,10 +131,8 @@ def penerima_personalData_modal():
             jumlah_tanggungan=int(tanggungan),
             jumlah_kendaraan=int(kendaraan),
             status_tempat_tinggal=status_tempat_tinggal,
-            jenis_kebutuhan=jenis_kebutuhan,
-            jumlah=jumlah,
-            # alamat=alamat,
-            kategori=kategori
+            alamat=alamat,
+
         )
         db.session.add(add_dataDiri)
         db.session.commit()
@@ -193,12 +143,59 @@ def penerima_personalData_modal():
         )
         db.session.add(assignIdRekomendasi)
         db.session.commit()
-        socketio.emit('data_update',  {'message': 'Donasi diperbarui'})
+
         return jsonify({"message": "Data diri berhasil disimpan"}), 201
 
     except Exception as e:
         db.session.rollback()
+        print(e)
         return jsonify({"message": str(e)}), 500
+
+# @user.post("/api/post/modal/personal")
+# def penerima_personalData_modal():
+#     data = request.get_json()
+#     penghasilan = data.get("penghasilan")
+#     tanggungan = data.get("tanggungan")
+#     kendaraan = data.get("kendaraan")
+#     status_tempat_tinggal = data.get("status_tempat_tinggal")
+#     # jenis_kebutuhan = data.get("jenis_kebutuhan")
+#     kategori = data.get("kategori")
+#     alamat = data.get('alamat')
+#     try:
+#         user = db.session.query(Register_login).order_by(Register_login.id.desc()).first()
+#         print(user.role)
+#         print(user.id)
+#         if user.role != 'penerima':
+#             return jsonify({'message': 'role bukan penerima'}), 401
+
+#         if DataDiriPenerima.query.filter_by(id_user=user.id).first():
+#             return jsonify({"message": "Data diri sudah ada"}), 400
+
+#         add_dataDiri = DataDiriPenerima(
+#             id_user=user.id,
+#             penghasilan_perbulan=int(penghasilan),
+#             jumlah_tanggungan=int(tanggungan),
+#             jumlah_kendaraan=int(kendaraan),
+#             status_tempat_tinggal=status_tempat_tinggal,
+#             # jenis_kebutuhan=jenis_kebutuhan,
+#             alamat=alamat,
+#             kategori=kategori
+#         )
+#         db.session.add(add_dataDiri)
+#         db.session.commit()
+
+#         assignIdRekomendasi = HasilKlasifikasi(
+#             id_data_diri=add_dataDiri.id,
+#             id_user=user.id
+#         )
+#         db.session.add(assignIdRekomendasi)
+#         db.session.commit()
+#         socketio.emit('data_update',  {'message': 'Donasi diperbarui'})
+#         return jsonify({"message": "Data diri berhasil disimpan"}), 201
+
+#     except Exception as e:
+#         db.session.rollback()
+#         return jsonify({"message": str(e)}), 500
 
 
 @user.get('/api/get/account/donatur')
@@ -207,61 +204,82 @@ def getDonatur():
     getData = Register_login.query.filter_by(role='donatur').order_by(Register_login.id.asc()).all()
     return jsonify({"data": [a.to_dict() for a in getData]}), 200
 
+@user.get('/api/get/jumlah/account/donatur')
+def getJumlahDonatur():
+    jumlah = Register_login.query.filter_by(role="donatur").order_by(Register_login.id.asc()).count()
+    return jsonify({
+        "jumlah" : jumlah
+    })
+
+@user.get('/api/get/jumlah/account/penerima')
+def getJumlahPenerima():
+    jumlah = Register_login.query.filter_by(role="penerima").order_by(Register_login.id.asc()).count()
+    return jsonify({
+        "jumlah" : jumlah
+    })
 
 @user.get("/api/get/account/penerima")
 @jwt_required()
 def get_account():
-    get_data = (
+    try:
+        get_data = (
         db.session.query(
             Register_login.id,
             Register_login.name,
             Register_login.email,
             Register_login.username,
-            Register_login.password,
             Register_login.role,
             Register_login.status,
             Register_login.login_stamp,
             Register_login.register_stamp,
+            Register_login.edit_stamp,
             Register_login.approved_date,
             Register_login.rejected_date,
             DataDiriPenerima.penghasilan_perbulan,
             DataDiriPenerima.jumlah_tanggungan,
             DataDiriPenerima.jumlah_kendaraan,
             DataDiriPenerima.status_tempat_tinggal,
-            DataDiriPenerima.kategori,
-            DataDiriPenerima.jenis_kebutuhan,
-            DataDiriPenerima.jumlah
-        )
-        .join(DataDiriPenerima)
-        .filter(Register_login.role == "penerima")
-        .order_by(Register_login.id.asc()).all()
+            pengajuanBarang.jenis_barang,
+            pengajuanBarang.nama_barang,
+            DataDiriPenerima.alamat,
+            HasilKlasifikasi.layak
     )
+    .outerjoin(DataDiriPenerima, DataDiriPenerima.id_user == Register_login.id)
+    .outerjoin(pengajuanBarang, pengajuanBarang.id_penerima == Register_login.id)
+    .outerjoin(HasilKlasifikasi, HasilKlasifikasi.id_user == Register_login.id)
+    .filter(Register_login.role == "penerima")
+    .order_by(Register_login.id.asc())
+    .all()
+)
 
-    data_list = [
+
+        data_list = [
         {
             "id": data[0],
             "name": data[1],
             "email": data[2],
             "username": data[3],
-            "password": data[4],
-            "role": data[5],
-            "status" : data[6],
-            "login_stamp": data[7],
-            "register_stamp": data[8],
-            "approved_date" : data[9],
-            "rejected_date" : data[10],
+            "role": data[4],
+            "status": data[5],
+            "login_stamp": data[6],
+            "register_stamp": data[7],
+            "edit_stamp": data[8],
+            "approved_date": data[9],
+            "rejected_date": data[10],
             "penghasilan_perbulan": data[11],
             "jumlah_tanggungan": data[12],
             "jumlah_kendaraan": data[13],
             "status_tempat_tinggal": data[14],
-            "kategori": data[15],
-            "jenis_kebutuhan": data[16],
-            "jumlah" : data[17]
+            "jenis_barang": data[15],
+            "nama_barang": data[16],
+            "alamat": data[17],
+            "layak": data[18]
         }
         for data in get_data
-    ]
-
-    return jsonify({"data": data_list}), 200
+        ]
+        return jsonify({"data": data_list}), 200
+    except Exception as e:
+        return jsonify({"message": str(e)}), 500
 
 
 
@@ -269,16 +287,24 @@ def get_account():
 @jwt_required()
 def get_personal():
     try:
-        get_data = db.session.query(DataDiriPenerima.id , 
-        Register_login.name,
-        DataDiriPenerima.penghasilan_perbulan,
-        DataDiriPenerima.jumlah_tanggungan,
-        DataDiriPenerima.jumlah_kendaraan,
-        DataDiriPenerima.status_tempat_tinggal,
-        DataDiriPenerima.kategori,
-        DataDiriPenerima.jenis_kebutuhan,
-        DataDiriPenerima.jumlah
-        ).join(Register_login).filter_by(role='penerima').order_by(Register_login.id.asc()).all()
+        get_data = (
+            db.session.query(
+                DataDiriPenerima.id,
+                Register_login.name,
+                DataDiriPenerima.penghasilan_perbulan,
+                DataDiriPenerima.jumlah_tanggungan,
+                DataDiriPenerima.jumlah_kendaraan,
+                DataDiriPenerima.status_tempat_tinggal,
+                pengajuanBarang.jenis_barang,
+                pengajuanBarang.jumlah
+            )
+            .outerjoin(Register_login, Register_login.id == DataDiriPenerima.id_user)
+            .outerjoin(pengajuanBarang, pengajuanBarang.id_penerima == Register_login.id)
+            .filter(Register_login.role == 'penerima')
+            .order_by(Register_login.id.asc())
+            .all()
+        )
+
         data_list = [
             {
                 "id": data[0],
@@ -287,17 +313,18 @@ def get_personal():
                 "jumlah_tanggungan": data[3],
                 "jumlah_kendaraan": data[4],
                 "status_tempat_tinggal": data[5],
-                "kategori": data[6],
-                "jenis_kebutuhan": data[7],
-                "jumlah": data[8]
+                "jenis_kebutuhan": data[6],
+                "jumlah": data[7]
             }
             for data in get_data
         ]
-        return jsonify({
-            "data": data_list,
-        })
+
+        return jsonify({"data": data_list})
+
     except Exception as e:
+        print(e)
         return jsonify({"message": str(e)}), 500
+
 
 
 @user.get("/api/get/data")
@@ -312,38 +339,56 @@ def penerima_personal():
     
 
 
-@user.put("/api/put/update/<int:id>")
+@user.patch("/api/put/update/<int:id>")
 @jwt_required()
 def penerima_update(id):
     data = request.get_json()
+    # Ambil data dari JSON
     name = data.get("name")
     email = data.get("email")
     username = data.get("username")
-    password = data.get("password")
+    password = data.get("password") 
     role = data.get('role')
+
     try:
-        penerima_user = Register_login.query.filter_by(id=id).first()
-        if not penerima_user:
+        edit_user = Register_login.query.get(id) 
+        if not edit_user:
             return jsonify({"message": "Penerima tidak ditemukan"}), 404
 
-        cek_email_username = Register_login.query.filter(
-            or_(Register_login.email == email, Register_login.username == username),
-            Register_login.id != id
-        ).first()
-        if cek_email_username:
-            return jsonify({"message": "Email atau Username sudah digunakan"}), 400
+        if email or username:
+            cek_email_username = Register_login.query.filter(
+                ((Register_login.email == email) | (Register_login.username == username)),
+                Register_login.id != id
+            ).first()
+            
+            if cek_email_username:
+                return jsonify({"message": "Email atau Username sudah digunakan"}), 400
+        if name and name.strip() != "":
+            edit_user.name = name  
 
-        penerima_user.name = name
-        penerima_user.email = email
-        penerima_user.username = username
-        penerima_user.password = bcrypt.generate_password_hash(password).decode('utf-8')
-        penerima_user.role = role
+        if email and email.strip() != "":
+            edit_user.email = email
+
+        if username and username.strip() != "":
+            edit_user.username = username
+
+        if role and role.strip() != "":
+            edit_user.role = role
+
+        if password and password.strip() != "":
+            edit_user.password = bcrypt.generate_password_hash(password).decode('utf-8')
+        
+        edit_user.edit_stamp = datetime.now()
+        
         db.session.commit()
-        socketio.emit('data_update',  {'message': 'Donasi diperbarui'})
+        socketio.emit('data_update', {'message': 'Data diperbarui'})
+        
         return jsonify({"message": "Update berhasil"}), 200
+
     except Exception as e:
         db.session.rollback()
-        return jsonify({"message": str(e)}), 500
+        print(f"Error: {e}")
+        return jsonify({"message": f"Terjadi kesalahan sistem: {str(e)}"}), 500
 
 @user.delete("/api/delete/penerima/<int:id>")
 @jwt_required()
@@ -356,6 +401,7 @@ def penerima_delete(id):
         return jsonify({"message": "Akun penerima berhasil dihapus"}), 200
 
     except Exception as e:
+        print(e)
         db.session.rollback()
         return jsonify({"message": str(e)}), 500
 @user.delete('/api/delete/donatur/<int:id>')
@@ -376,9 +422,9 @@ def donatur_delete(id):
 def get_informasiDonasi():
     id = get_jwt_identity()
     try:
-        data = db.session.query(Register_login.id, Register_login.name,Donasi.tanggal_donasi,Barang.gambar_barang,DataDiriPenerima.jenis_kebutuhan).join(Register_login, Register_login.id == Donasi.id_user).join(
+        data = db.session.query(Register_login.id, Register_login.name,Donasi.tanggal_donasi,Barang.gambar_barang,pengajuanBarang.jenis_barang).join(Register_login, Register_login.id == pengajuanBarang.id_penerima).join(
             Barang, Barang.id == Donasi.id_barang).join(
-            DataDiriPenerima, DataDiriPenerima.id_user == id).all()
+            pengajuanBarang, pengajuanBarang.id_penerima == id).all()
         data_list = [
             {
                 "id": d[0],
@@ -392,7 +438,7 @@ def get_informasiDonasi():
     except Exception as e:
         return jsonify({"message": str(e)}), 500
 
-@user.put("/api/put/personalDataDiri/<int:id>")
+@user.patch("/api/put/personalDataDiri/<int:id>")
 @jwt_required()
 def update_personalDataDiri(id):
     data = request.get_json()
@@ -400,14 +446,14 @@ def update_personalDataDiri(id):
     jumlah_tanggungan = data.get('jumlah_tanggungan')
     jumlah_kendaraan = data.get('jumlah_kendaraan')
     status_tempat_tinggal = data.get('status_tempat_tinggal')
-    jenis_kebutuhan = data.get('jenis_kebutuhan')
+    alamat = data.get('alamat')
     try:
         personal = DataDiriPenerima.query.filter_by(id=id).first()
         personal.penghasilan_perbulan = penghasilan_perbulan
         personal.jumlah_tanggungan = jumlah_tanggungan
         personal.jumlah_kendaraan = jumlah_kendaraan
         personal.status_tempat_tinggal = status_tempat_tinggal
-        personal.jenis_kebutuhan = jenis_kebutuhan
+        personal.alamat = alamat
         db.session.commit()
 
         socketio.emit('data_update',  {'message': 'Donasi diperbarui'})
@@ -446,7 +492,7 @@ def get_role():
         print(e)
         return jsonify({'message': 'Terjadi kesalah pada internal server ' + e}),500
     
-@user.put('/api/user/approved/<int:id>')
+@user.patch('/api/user/approved/<int:id>')
 @jwt_required()
 def user_approved(id):
     try:
@@ -463,7 +509,7 @@ def user_approved(id):
         db.session.rollback()
         return jsonify({'message': str(e)}),500
 
-@user.put('/api/user/rejected/<int:id>')
+@user.patch('/api/user/rejected/<int:id>')
 @jwt_required()
 def user_rejected(id):
     try:
@@ -478,7 +524,7 @@ def user_rejected(id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'message' : str(e)}),500
-
+    
 @user.post('/oauth/token')
 @jwt_required(refresh=True, locations=["cookies"])
 def refresh_token():

@@ -4,6 +4,7 @@ from .donasi import donasi
 from .klasifikasi import klasifikasi
 from .notif import notif
 from .pengajuan import pengajuan
+from .dokumentasi import dokumentasi
 
 
 def init_routes(app):
@@ -13,3 +14,4 @@ def init_routes(app):
     app.register_blueprint(klasifikasi, url_prefix='/klasifikasi')
     app.register_blueprint(notif, url_prefix='/notif')
     app.register_blueprint(pengajuan, url_prefix='/pengajuan')
+    app.register_blueprint(dokumentasi, url_prefix='/dokumentasi')

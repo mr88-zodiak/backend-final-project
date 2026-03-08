@@ -4,6 +4,8 @@ import os
 from sqlalchemy.orm import aliased
 from app.models.user import *
 from app.models.notifikasi import *
+from app.models.Modelsdokumentasi import *
+from app.models.pengajuan import *
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime
 from flask import send_from_directory
@@ -11,14 +13,13 @@ from sqlalchemy.orm import aliased
 from sqlalchemy.orm import aliased
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from app.extends import socketio
-
+from config import Config
 donasi = Blueprint('donasi', __name__)
 
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg','avif'}
 
 
 def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in Config.ALLOWED_EXTENSIONS
 
 def uploaded_file(filename):
     return send_from_directory(current_app.config['UPLOAD_FOLDER'], filename)
@@ -36,6 +37,10 @@ def donate(id_user):
 
         if 'gambar_barang' not in request.files:
             return jsonify({"error": "No file part"}), 400
+        
+        jumlah = request.form.get('jumlah')
+        if not jumlah:
+            return jsonify({"error": "Jumlah wajib diisi"}), 400
 
         gambar_barang = request.files['gambar_barang']
         if gambar_barang.filename == '':
@@ -43,6 +48,7 @@ def donate(id_user):
 
         if not allowed_file(gambar_barang.filename):
             return jsonify({"error": "File tidak diizinkan"}), 400
+        
 
         filename = secure_filename(gambar_barang.filename)
         filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
@@ -52,7 +58,9 @@ def donate(id_user):
             nama_barang=name_barang,
             gambar_barang=filename,
             kondisi_barang=int(request.form.get('kondisi_barang')),
+            jumlah_barang=int(jumlah),
             id_donatur=id,
+            id_penerima=id_user,
             tanggal_masuk=None
         )
         db.session.add(barang)
@@ -67,11 +75,14 @@ def donate(id_user):
         db.session.add(donasi_entry)
         db.session.commit()
 
-        # getPersonal = db.session(DataDiriPenerima).get(id)
+        barang = Barang.query.filter_by(id_penerima=id_user).first()
+        donasi = Donasi.query.filter_by(id_penerima=id_user).first()
+        donasi.donasi_terkumpul = donasi.donasi_terkumpul + int(jumlah)
+        db.session.commit()
 
-
-        # getPersonal.jumlah = request.form.get('jumlah')
-        # db.session.commit()
+        dataPengajuan = pengajuanBarang.query.filter_by(id_penerima=id_user).first()
+        dataPengajuan.jumlah = dataPengajuan.jumlah - int(jumlah)
+        db.session.commit()
 
         socketio.emit('data_update',  {'message': 'Donasi diperbarui'})
         return jsonify({"message": "Donasi berhasil"}), 201
@@ -134,7 +145,7 @@ def update_donasi(id):
     
     try:
         doneDonasi = Donasi.query.get(id)
-        
+        dokumentasi = Dokumentasi.query.filter_by(id_donatur=doneDonasi.id_donatur).first()
         if not doneDonasi:
             return jsonify({'message':'Donasi tidak ditemukan'})
         
@@ -149,7 +160,7 @@ def update_donasi(id):
 
 
 @donasi.get("/api/get/donasi")
-@jwt_required()
+# @jwt_required()
 def get_all_data():
     try:
         # Buat alias untuk tabel Register_login
@@ -168,7 +179,6 @@ def get_all_data():
                 Donasi.status,
                 Donasi.tanggal_approve,
                 Donasi.tanggal_reject,
-                DataDiriPenerima.jumlah,
                 Notifikasi.pesan,
             )
             .join(Donatur, Donatur.id == Donasi.id_donatur)
@@ -189,7 +199,6 @@ def get_all_data():
                 "penerima_name": d.penerima_name or "Belum Ada",
                 "barang": d.nama_barang,
                 "kondisi_barang": d.kondisi_barang,
-                "jumlah": d.jumlah,
                 "tanggal_donasi": d.tanggal_donasi.isoformat() if d.tanggal_donasi else None,
                 "status": d.status,
                 "pesan": d.pesan,
@@ -229,19 +238,19 @@ def riwayat_donasi():
             Donasi.id,
             Penerima.name,
             Barang.nama_barang,
-            DataDiriPenerima.kategori,
+            pengajuanBarang.jenis_barang,
             Barang.kondisi_barang,
-            DataDiriPenerima.jumlah,
             Donasi.tanggal_donasi,
             Donasi.status,
             Donasi.tanggal_approve,
             Donasi.tanggal_reject,
             Notifikasi.pesan,
-            Donasi.status_pengiriman
-        ).join(Barang, Donasi.id_barang == Barang.id
+            Donasi.status_pengiriman,
+            Donasi.donasi_terkumpul
+        ).outerjoin(Barang, Donasi.id_barang == Barang.id
         ).outerjoin(Notifikasi, Notifikasi.id_donasi == Donasi.id
         ).outerjoin(Penerima, Penerima.id == Donasi.id_penerima
-        ).outerjoin(DataDiriPenerima, DataDiriPenerima.id_user == Donasi.id_penerima
+        ).outerjoin(pengajuanBarang, pengajuanBarang.id_penerima == Donasi.id_penerima
         ).filter(Donasi.id_donatur == get_jwt_identity()
         ).order_by(Donasi.id.desc()
         ).all()
@@ -250,15 +259,15 @@ def riwayat_donasi():
                 "id": r.id,
                 "name" : r.name,
                 "nama_barang": r.nama_barang,
-                "kategori": r.kategori,
+                "kategori": r.jenis_barang,
                 "kondisi" : r.kondisi_barang,
-                "jumlah": r.jumlah,
                 "tanggal_donasi": r.tanggal_donasi.isoformat() if r.tanggal_donasi else None,
                 "status": r.status,
                 "tanggal_approve": r.tanggal_approve.isoformat() if r.tanggal_approve else None,
                 "tanggal_reject": r.tanggal_reject.isoformat() if r.tanggal_reject else None,
                 "pesan": r.pesan,
-                "status_pengiriman" : r.status_pengiriman
+                "status_pengiriman" : r.status_pengiriman,
+                "donasi_terkumpul" : r.donasi_terkumpul
             }
             for r in riwayat
         ]
@@ -268,14 +277,14 @@ def riwayat_donasi():
         return jsonify({'error': str(e)}), 500
 
 @donasi.get('/api/get/Kategori/<kategori>')
-@jwt_required()
+# @jwt_required()
 def getKategori(kategori):
     try:
         dataKategori = (
-            DataDiriPenerima.query.filter(DataDiriPenerima.kategori == kategori).all()
+            pengajuanBarang.query.filter(pengajuanBarang.jenis_barang == kategori).all()
         )
 
-        kategori_list = [row.kategori for row in dataKategori]
+        kategori_list = [row.jenis_barang for row in dataKategori]
         return jsonify({'kategori': kategori_list}), 200
 
     except Exception as e:
@@ -296,9 +305,7 @@ def donasi_terbaru_penerima():
                 Donasi.id,
                 Barang.nama_barang,
                 Donatur.name.label('donatur_name'),
-                DataDiriPenerima.jumlah,
                 Barang.kondisi_barang,
-                DataDiriPenerima.kategori,
                 Donasi.tanggal_donasi,
                 Donasi.status,
                 Donasi.status_pengiriman
@@ -306,7 +313,6 @@ def donasi_terbaru_penerima():
             .join(Barang, Donasi.id_barang == Barang.id)
             .outerjoin(Donatur, Donasi.id_donatur == Donatur.id)
             .outerjoin(Penerima, Donasi.id_penerima == Penerima.id)
-            .outerjoin(DataDiriPenerima, DataDiriPenerima.id_user == Penerima.id)
             .filter(Donasi.id_penerima == get_jwt_identity()) 
             .order_by(Donasi.id.desc())
             .all()
@@ -316,9 +322,7 @@ def donasi_terbaru_penerima():
             {
                 "id": i.id,
                 "nama_barang": i.nama_barang,
-                "kategori": i.kategori,
                 "donatur_name": i.donatur_name,
-                "jumlah": i.jumlah,
                 "kondisi": i.kondisi_barang,
                 "tanggal_donasi": i.tanggal_donasi.strftime("%Y-%m-%d"),
                 "status": i.status,

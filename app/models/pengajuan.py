@@ -10,25 +10,28 @@ class pengajuanBarang(db.Model):
         db.ForeignKey('users.id', ondelete= "CASCADE"),
         nullable=False
     )
-    jenis_barang = db.Column(db.String(100), nullable=False)
     nama_barang = db.Column(db.String(100), nullable=False)
-    approve = db.Column(db.Boolean, default=False)
+    jenis_barang = db.Column(db.String(50), nullable=True)
+    status = db.Column(db.String(50), nullable=True, default="pending")
+    jumlah = db.Column(db.Integer, nullable=True)
     tanggal_approve = db.Column(db.DateTime)
     tanggal_reject = db.Column(db.DateTime)
     tanggal_pengajuan = db.Column(db.DateTime, default=datetime.now)
     pesan_reject = db.Column(db.String(255), nullable=True) 
 
-    def __init__(self, id_penerima, jenis_barang, nama_barang):
+    def __init__(self, id_penerima, nama_barang,jenis_barang,jumlah):
         self.id_penerima = id_penerima
-        self.jenis_barang = jenis_barang
         self.nama_barang = nama_barang
+        self.jenis_barang = jenis_barang
+        self.jumlah = jumlah
 
     def to_dict(self):
         return{
             'id_penerima': self.id_penerima,
-            'jenis_barant': self.jenis_barang,
             'nama_barang': self.nama_barang,
-            'approve': self.approve,
+            'jenis_barang': self.jenis_barang,
+            'jumlah': self.jumlah,
+            'status': self.status,
             'tanggal_approve': self.tanggal_approve,
             'tanggal_reject': self.tanggal_reject,
             'tanggal_pengajuan': self.tanggal_pengajuan,

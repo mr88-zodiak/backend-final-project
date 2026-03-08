@@ -1,8 +1,7 @@
 from app import db
 import joblib
 import pandas as pd
-
-model = joblib.load('./knn_model_fix.pkl')
+from app.extends import model
 
 class HasilKlasifikasi(db.Model):
     
@@ -29,10 +28,8 @@ class HasilKlasifikasi(db.Model):
                 "jumlah tanggungan",
                 "jumlah kendaraan",
                 "status tempat tinggal",
-                "jenis kebutuhan"
             ]
 
-            # pastikan semua fitur tersedia
             missing = [f for f in features if f not in df.columns]
             if missing:
                 raise ValueError(f"Missing features: {missing}")
