@@ -27,6 +27,10 @@ def user_login():
     email = data.get("email")
     password = data.get("password")
 
+    data = [{
+        "email": email,
+        "password": password
+    }]
     try:
         user = Register_login.query.filter_by(email=email).first()
 
@@ -34,7 +38,7 @@ def user_login():
             return jsonify({"message": "Email atau password belum terdaftar"}), 401
 
         if not bcrypt.check_password_hash(user.password, password):
-            return jsonify({"message": "Email atau password salah"}), 401
+            return jsonify({"message": "Email atau password salah","data": data}), 401
 
         cekDataDiri = DataDiriPenerima.query.filter_by(id_user=user.id).first()
 
@@ -68,8 +72,8 @@ def user_login():
         return resp
 
     except Exception as e:
-        db.session.rollback()
         print(e)
+        db.session.rollback()
         return jsonify({"message": str(e)}), 500
 
 @user.post("/api/post/daftar")
