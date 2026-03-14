@@ -14,5 +14,6 @@ class Config:
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(seconds=7200)
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=7)
     UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg','webp'}
 
     

@@ -6,17 +6,24 @@ from sqlalchemy import Enum
 class Register_login(db.Model):
     __tablename__ = "users"
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    password = db.Column(db.String(200), nullable=False)
-    role = db.Column(Enum('admin', 'donatur', 'penerima', name='role_enum',create_type=False), nullable=False, server_default='admin')
+    name = db.Column(db.String(100), nullable=True)
+    email = db.Column(db.String(120), unique=True, nullable=True)
+    username = db.Column(db.String(80), unique=True, nullable=True)
+    password = db.Column(db.String(200), nullable=True)
+    role = db.Column(Enum('admin', 'donatur', 'penerima', name='role_enum',create_type=False), nullable=True, server_default='admin')
     login_stamp = db.Column(db.DateTime, default=None)
     register_stamp = db.Column(db.DateTime, default=datetime.now)
-    status = db.Column(Enum('rejected','approved','pending',name="permission_enum",create_type=False), nullable=False, server_default="pending")
+    edit_stamp = db.Column(db.DateTime, default=datetime.now)
+    status = db.Column(Enum('rejected','approved','pending',name="permission_enum",create_type=False), nullable=True, server_default="pending")
     approved_date = db.Column(db.DateTime)
     rejected_date = db.Column(db.DateTime)
 
+    dokumentasi = db.relationship(
+        "Dokumentasi",
+        backref="users",
+        cascade="all, delete-orphan",
+        passive_deletes=True
+    )
     pengajuan_barant = db.relationship(
         'pengajuanBarang',
         backref='users',
@@ -44,6 +51,14 @@ class Register_login(db.Model):
 
     barang = db.relationship(
         'Barang',
+        backref='users',
+        foreign_keys='Barang.id_donatur',
+        cascade="all, delete-orphan",
+        passive_deletes=True
+    )
+    barang = db.relationship(
+        'Barang',
+        foreign_keys='Barang.id_penerima',
         backref='users',
         cascade="all, delete-orphan",
         passive_deletes=True
@@ -87,6 +102,7 @@ class Register_login(db.Model):
             "status": self.status,
             "login_stamp": self.login_stamp,
             "register": self.register_stamp,
+            "edit_stamp" : self.edit_stamp,
             "approve": self.approved_date,
             "rejected": self.rejected_date
         }
@@ -97,9 +113,9 @@ class DataDiriPenerima(db.Model):
     jumlah_tanggungan = db.Column(db.Integer, nullable=False)
     status_tempat_tinggal = db.Column(db.String(100), nullable=False)
     jumlah_kendaraan = db.Column(db.Integer, nullable=False)
-    kategori = db.Column(Enum('buku','pakaian','furniture','elektronik','peralatan dapur',name="kategori_enum",create_type=False), nullable=False,server_default="buku")
-    jumlah = db.Column(db.Integer, nullable=False)
-    jenis_kebutuhan = db.Column(db.String(100), nullable=False)
+    # kategori = db.Column(Enum('buku','pakaian','furniture','elektronik','peralatan dapur',name="kategori_enum",create_type=False), nullable=False,server_default="buku")
+    # jumlah = db.Column(db.Integer, nullable=False)
+    # jenis_kebutuhan = db.Column(db.String(100), nullable=False)
     alamat = db.Column(db.String(100), nullable=True)
     id_user = db.Column(
         db.Integer,
@@ -107,7 +123,6 @@ class DataDiriPenerima(db.Model):
         unique=True,
         nullable=False
     )
-
     hasil_rekomendasi = db.relationship(
         "HasilRekomendasi",
         backref="data_diri_penerima",
@@ -121,16 +136,13 @@ class DataDiriPenerima(db.Model):
         passive_deletes=True
     )
 
-    def __init__(self, id_user, penghasilan_perbulan, jumlah_tanggungan, status_tempat_tinggal, jumlah_kendaraan,kategori, jenis_kebutuhan,jumlah):
+    def __init__(self, id_user, penghasilan_perbulan, jumlah_tanggungan, status_tempat_tinggal, jumlah_kendaraan,alamat):
         self.id_user = id_user
         self.penghasilan_perbulan = penghasilan_perbulan
         self.jumlah_tanggungan = jumlah_tanggungan
         self.status_tempat_tinggal = status_tempat_tinggal
         self.jumlah_kendaraan = jumlah_kendaraan
-        self.jenis_kebutuhan = jenis_kebutuhan
-        self.jumlah = jumlah
-        self.kategori = kategori
-        # self.alamat = alamat
+        self.alamat = alamat
 
     def to_dict(self):
         return {
@@ -139,8 +151,7 @@ class DataDiriPenerima(db.Model):
             "jumlah_tanggungan": self.jumlah_tanggungan,
             "status_tempat_tinggal": self.status_tempat_tinggal,
             "jumlah_kendaraan": self.jumlah_kendaraan,
-            "kategori": self.kategori,
-            "jenis_kebutuhan": self.jenis_kebutuhan,
+            "alamat" : self.alamat,
             "id_user": self.id_user
         }
 
@@ -153,10 +164,10 @@ class Donasi(db.Model):
     tanggal_donasi = db.Column(db.DateTime, nullable=False)
     status = db.Column(db.String(100), nullable=True, default="pending")
     status_pengiriman = db.Column(db.Enum('pick_up', 'delivered','delivering','cancelled','done','rejected', name="metode_enum",create_type=False), nullable=True, default='pick_up')
+    donasi_terkumpul = db.Column(db.Integer, nullable=True, default=0)
     # status_donasi = db.Column(db.Enum('menunggu_penjemputan', 'dalam_perjalanan', 'tersalurkan', name="status_enum"), default='menunggu_penjemputan')
     tanggal_approve = db.Column(db.DateTime, nullable=True)
     tanggal_reject = db.Column(db.DateTime, nullable=True)
-
     donasi_notifikasi = db.relationship(
         'Notifikasi',
         backref='donasi',
@@ -189,12 +200,17 @@ class Barang(db.Model):
         db.ForeignKey('users.id', ondelete="CASCADE"),
         nullable=True
     )
+    id_penerima = db.Column(
+        db.Integer,
+        db.ForeignKey('users.id', ondelete="CASCADE"),
+        nullable=True
+    )
     nama_barang = db.Column(db.String(100), nullable=False)
     kondisi_barang = db.Column( db.Integer, nullable=False, server_default='1')
     gambar_barang = db.Column(db.String(255), nullable=True)
+    jumlah_barang = db.Column(db.Integer, nullable=True, default=0)
     tanggal_masuk = db.Column(db.DateTime, nullable=True)
 
-    # Relasi ke donasi
     donasi = db.relationship(
         'Donasi',
         backref='barang',
@@ -208,17 +224,21 @@ class Barang(db.Model):
         passive_deletes=True
     )
 
-    def __init__(self, nama_barang, gambar_barang, id_donatur, tanggal_masuk,kondisi_barang=1):
+    def __init__(self, nama_barang, gambar_barang, id_donatur,id_penerima, tanggal_masuk,kondisi_barang=1,jumlah_barang=0):
         self.id_donatur = id_donatur
+        self.id_penerima = id_penerima
         self.nama_barang = nama_barang
         self.kondisi_barang = kondisi_barang
         self.gambar_barang = gambar_barang
+        self.jumlah_barang = jumlah_barang
         self.tanggal_masuk = tanggal_masuk
+    
 
     def to_dict(self):
         return {
             "id": self.id,
             "id_donatur": self.id_donatur,
+            "id_penerima": self.id_penerima,
             "nama_barang": self.nama_barang,
             "gambar_barang": self.gambar_barang,
             "tanggal_masuk": self.tanggal_masuk

@@ -4,9 +4,11 @@ from flask_jwt_extended import JWTManager
 from flask_socketio import SocketIO
 from flask_migrate import Migrate
 from flask_bcrypt import Bcrypt
+import joblib
 
 
 socketio = SocketIO(cors_allowed_origins="*")
+model = joblib.load('./knn_model_fix.pkl')
 db = SQLAlchemy()
 jwt = JWTManager()
 bcrypt = Bcrypt()
